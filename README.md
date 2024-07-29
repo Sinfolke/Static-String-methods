@@ -10,6 +10,7 @@ I decided to done those methods (fromCharsCode and fromCodePoint) so it could he
       _used to throw a **RangeError** in **C**_
 
    **c function declarations...**
+
    **function mmalloc**
        _uses **malloc** and throws a **bad_alloc** on **NULL**. Used both within **ts and C** for allocations_
 
@@ -17,7 +18,9 @@ I decided to done those methods (fromCharsCode and fromCodePoint) so it could he
 # **native.c**:
 
    **ts function declarations**
+
    **private function definitions on top**
+
    **preprocessor checks for EXPORT and VLA**
         _**VLA** is used as stack optimization for low inputs. Can be adjusted by setting **-DVLA=0** or **-DVLA=1**_
 
