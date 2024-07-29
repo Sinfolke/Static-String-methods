@@ -32,7 +32,7 @@ I decided to done those methods (fromCharsCode and fromCodePoint) so it could he
    **test functions**
           _used in perfomance.c only_
 
-   **Private functions**
+**Private functions**
 
     **RangeError**
         _throws **RangeError** with **printf** functionality). I decided to limit the final message with stack **66** byte buffer_
