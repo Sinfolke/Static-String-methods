@@ -33,9 +33,7 @@ int fromCodePoint(const uint32_t* numN, size_t count, char* Str);
 #endif
 
 #define MIN_REALLOC_REQUEST_SIZE 32     // how big must be offset to request realloc
-#define MIN_HEAP_ALLOC_REQUEST_SIZE 81 // how big must be string to use heap (it is count, size will be count*4)
-                                        // ! as i noticed perfomance do not work with values > 81.
-                                        // so possibly it is my stack limit
+#define MIN_HEAP_ALLOC_REQUEST_SIZE 150 // how big must be string to use heap (it is count, size will be count*4)
 EXPORT void* _cfromCodePoint(const uint32_t* numN, size_t count) {
     #if VLA
         if (count <= MIN_HEAP_ALLOC_REQUEST_SIZE)
