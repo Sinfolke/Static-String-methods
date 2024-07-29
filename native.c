@@ -88,7 +88,7 @@ void* fromCodePoint_stack(const uint32_t* numN, size_t len, size_t count) {
     dblog("stack_alloc: %zu\n", len);
     char stack[len];
     len -= fromCodePoint(numN, count, stack);
-    char* heap = (char*) mmalloc(len);
+    char* heap = mmalloc(len);
     memcpy(heap, stack, len);
     // null terminate the string if required
     heap[len] = L'\0';
@@ -101,11 +101,11 @@ void* fromCodePoint_stack(const uint32_t* numN, size_t len, size_t count) {
 // not so fast as stack allocation, but not slow in common execution practise
 void* fromCodePoint_heap(const uint32_t* numN, size_t len, size_t count) {
     dblog("heap_alloc: %zu\n", len);
-    char* heap = (char*) mmalloc(len);
+    char* heap = mmalloc(len);
     int offset = fromCodePoint(numN, count, heap);
-    if (offset >= MIN_REALLOC_REQUEST_SIZE*4) {
+    if (offset >= MIN_REALLOC_REQUEST_SIZE) {
         len -= offset;
-        char* newstr = (char*)realloc(heap, len);
+        char* newstr = realloc(heap, len);
         if (newstr != NULL) heap = newstr;
     }
     heap[len] = L'\0';
