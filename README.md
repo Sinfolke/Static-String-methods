@@ -36,7 +36,7 @@ I decided to done those methods (fromCharsCode and fromCodePoint) so it could he
       **RangeError**
             _throws **RangeError** with **printf** functionality). I decided to limit the final message with stack **66** byte buffer_
 
-       **dblog, wdblog**
+      **dblog, wdblog**
             _uses **printf**, **wprintf** if defined **DEBUG**_
 
       **fromCodePoint_stack** 
