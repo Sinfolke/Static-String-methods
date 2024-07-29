@@ -22,7 +22,7 @@ I decided to done those methods (fromCharsCode and fromCodePoint) so it could he
    **private function definitions on top**
 
    **preprocessor checks for EXPORT and VLA**
-        _**VLA** is used as stack optimization for low inputs. Can be adjusted by setting **-DVLA=0** or **-DVLA=1**_
+        _: **VLA** is used as stack optimization for low inputs. Can be adjusted by setting **-DVLA=0** or **-DVLA=1**_
 
    **constants** (_you'll get there_)
    **_cfromCodePoint**
@@ -31,7 +31,7 @@ I decided to done those methods (fromCharsCode and fromCodePoint) so it could he
    **test functions**
           _used in perfomance.c only_
 
- ## **Private functions**
+## **Private functions**
       **RangeError**
             _throws **RangeError** with **printf** functionality). I decided to limit the final message with stack **66** byte buffer_
 
