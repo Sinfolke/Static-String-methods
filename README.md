@@ -33,20 +33,20 @@ I decided to done those methods (fromCharsCode and fromCodePoint) so it could he
         _used in perfomance.c only_
 
 
-   **Private RangeError**
+   **Private RangeError:**
         _throws **RangeError** with **printf** functionality). I decided to limit the final message with stack **66** byte buffer_
 
-   **Private dblog, wdblog**
+   **Private dblog, wdblog:**
         _uses **printf**, **wprintf** if defined **DEBUG**_
 
-   **Private fromCodePoint_stack** 
+   **Private fromCodePoint_stack:** 
         _function with **stack preallocation**_
 
-   **Private fromCodePoint_heap**
+   **Private fromCodePoint_heap:**
         _with the **heap preallocation**_
 
-   **Private fromCodePoint**
+   **Private fromCodePoint:**
         _internal byte manipulation function (i checked, it follows String.fromCodePoint in **official js doc**)_
 
-   **Private keepfn**
+   **Private keepfn:**
         _the function to keep exported other internal functions like **malloc**, **memcpy** and so on_
