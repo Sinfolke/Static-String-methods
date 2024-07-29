@@ -27,27 +27,26 @@ I decided to done those methods (fromCharsCode and fromCodePoint) so it could he
    **constants** (_you'll get there_)
 
    **_cfromCodePoint**
-          _used in **ts** code. It primary decides whether to use **heap** or **stack** preallocation_
+        _used in **ts** code. It primary decides whether to use **heap** or **stack** preallocation_
 
    **test functions**
-          _used in perfomance.c only_
+        _used in perfomance.c only_
 
-**Private functions**
 
-    **RangeError**
+   **Private RangeError**
         _throws **RangeError** with **printf** functionality). I decided to limit the final message with stack **66** byte buffer_
 
-    **dblog, wdblog**
+   **Private dblog, wdblog**
         _uses **printf**, **wprintf** if defined **DEBUG**_
 
-    **fromCodePoint_stack** 
+   **Private fromCodePoint_stack** 
         _function with **stack preallocation**_
 
-    **fromCodePoint_heap**
+   **Private fromCodePoint_heap**
         _with the **heap preallocation**_
 
-    **fromCodePoint**
+   **Private fromCodePoint**
         _internal byte manipulation function (i checked, it follows String.fromCodePoint in **official js doc**)_
 
-    **keepfn**
+   **Private keepfn**
         _the function to keep exported other internal functions like **malloc**, **memcpy** and so on_
