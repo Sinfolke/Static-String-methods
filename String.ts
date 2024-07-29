@@ -1,3 +1,4 @@
+type size_t = ulong;
 class bad_alloc {
    public name: string = "bad_alloc";
    public message: string = "allocation error";
@@ -21,15 +22,15 @@ class RangeError {
 function throw_RangeError(msg: string): void {
     throw new RangeError(msg);
 }
-declare function malloc(size: u64): Opaque;
+declare function malloc(size: size_t): Opaque;
 declare function realloc(src: Opaque, newsize: u64): Opaque;
 declare function free(mem: Opaque): void;
 declare function memcpy(dest: Opaque, src: Opaque, bytes: int): Opaque;
 declare function memmove(dest: Opaque, src: Opaque, bytes: int): Opaque;
 declare function wprintf(str: Opaque): void;
 declare function printf(str: Opaque): void;
-declare function _cfromCodePoint(numN: u32[], len: u64): string;
-function mmalloc(size: u64): string {
+declare function _cfromCodePoint(numN: u32[], len: size_t): string;
+function mmalloc(size: size_t): string {
    let src: string = malloc(size);
    if (src == null)
       throw new bad_alloc();
@@ -38,7 +39,7 @@ function mmalloc(size: u64): string {
 static class String {
    fromCharCode(...numN: u16[]): string {
     if (numN.length == 0) return "";
-    let size: u64 = numN.length * 2 + 1;
+    let size: size_t = numN.length * 2 + 1;
     let str: string = mmalloc(size);
     memcpy(str, numN, size);
     return str;
