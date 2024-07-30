@@ -4,7 +4,7 @@ I decided to done those methods (fromCharsCode and fromCodePoint) so it could he
       _throws when malloc returns null. I think can be replaced to js **InternalError**_
 
   **class RangeError**
-      _a requirement for **fromCodePoint**. Not instance of **Error** class atlough it must be. It does not follow js official doc, it is context defined_
+      _a requirement for **fromCodePoint**. Not instance of **Error** class atlough it must be. It does not fully follow **js official doc** (in terms of declaration)_
 
    **function throw_RangeError**
       _used to throw a **RangeError** in **C**_
