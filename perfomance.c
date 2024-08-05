@@ -13,7 +13,6 @@ void throw_RangeError(const char* msg) {
     printf("Error: %s\n", msg);
     exit(1);
 };
-#define IT 1000
 uint32_t testarr[81];
 typedef void (*void_func_t)(void);
 
@@ -80,7 +79,7 @@ const char* unit_str(perfomance_unit unit) {
     else
         return "seconds";
 }
-double testf(size_t iterations, int print, const char* name, perfomance_unit unit, void (*fun)()) {
+double testf(size_t iterations, int print, const char* name, perfomance_unit unit, void_func_t fun) {
     TimeType start_time, end_time, frequency;
     
     get_frequency(&frequency);
@@ -102,24 +101,13 @@ double testf(size_t iterations, int print, const char* name, perfomance_unit uni
     }
     return elapsed_time;
 }
-
-void test_all(size_t iterations, int print, int count, perfomance_unit unit, void_func_t test1, ...) {
-    if (count == 0) {
-        printf("zero count\n");
-        exit(0);
-    }
-    va_list args;
-    va_start(args, test1);
-    for (int i = 0; i < count; ++i)
-        testf(print, iterations, NULL, unit, va_arg(args, void_func_t));
+void stack_test(void) {
+    fromCodePoint_stack(testarr, sizeof(testarr), sizeof(testarr) * 4 + 2);
 }
-void stack_test() {
-    test_stack(testarr, sizeof(testarr));
+void heap_test(void) {
+    fromCodePoint_heap(testarr, sizeof(testarr), sizeof(testarr) * 4 + 2);
 }
-void heap_test() {
-    test_heap(testarr, sizeof(testarr));
-}
-int main(void) {
+int main() {
     for (int i = 0; i < sizeof(testarr); ++i) {
         testarr[i] = i;
     }
