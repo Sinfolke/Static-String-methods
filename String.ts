@@ -55,6 +55,26 @@ static class String {
     if (numN.length == 0) return "";
     return _cfromCodePoint(numN, numN.length);
    }
+   raw(callSite: string, ...substitutions: any[]): string {
+      let result: string = "";
+      if (callSite.length >= substitutions.length) {
+         let i = 0;
+         for (; i < substitutions.length; ++i) {
+            result += callSite[i];
+            result += String(substitutions[i]);
+         }
+         for (; i < callSite.length; ++i) {
+            result += callSite[i];
+         }
+      } else {
+         for (let i = 0; i < callSite.length; ++i) {
+            result += callSite[i];
+            result += String(substitutions[i]);
+         }
+      }
+      return result;
+   }
+   // String.raw`templateString` should be implemented by the compiler
 }
 
 // function main() {

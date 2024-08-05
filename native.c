@@ -109,12 +109,7 @@ EXPORT void _cchangeLocale();
 void* fromCodePoint_stack(const double* numN, size_t count, size_t len);
 void* fromCodePoint_heap(const double* numN, size_t count, size_t len);
 size_t fromCodePoint(const double* numN, size_t count, STDCHAR_T * Str);
-int hasFraction(double d) {
-    // Compute the fractional part by subtracting the integer part
-    double fp = d - floor(d);
-    // Return 1 (true) if the fractional part is greater than the defined tolerance
-    return fabs(fp) >= 1e-10;
-}
+int hasFraction(double d);
 
 // determine wether stack allocation can be supported by the compiler
 // if not it will be forcely replaced by the heap allocation
@@ -157,6 +152,12 @@ int isFinite(long double value) {
 }
 int isNaN(long double value) {
     return isnan(value);
+}
+int hasFraction(double d) {
+    // Compute the fractional part by subtracting the integer part
+    double fp = d - floor(d);
+    // Return 1 (true) if the fractional part is greater than the defined tolerance
+    return fabs(fp) >= 1e-10;
 }
 // fromCharCode C implementation
 wchar_t* _cfromCharCode(uint16_t* numN, size_t count) {
