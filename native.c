@@ -25,6 +25,8 @@ void keepfn(void* p1, void* p2);
     #define UTF16 1
     #define STDCHAR_T wchar_t
     #define STDCHAR_T_STR "wchar_t"
+    #define _wsnprintf(buffer, size, format, ...) \
+        swprintf(buffer, size, L##format, __VA_ARGS__)
     size_t char_conv(uint32_t codePoint, char* Str) {
         /*
             Converts codePoint to utf-16 encoding
@@ -60,7 +62,8 @@ void keepfn(void* p1, void* p2);
     #define UTF16 0
     #define STDCHAR_T char
     #define STDCHAR_T_STR "char"
-
+    #define _wsnprintf(buffer, size, format, ...) \
+        snprintf(buffer, size, format, __VA_ARGS__)
     size_t char_conv(uint32_t codePoint, char* Str) {
         /*
             Converts the codePoint into utf-8 encoding
@@ -105,11 +108,12 @@ EXPORT int isNaN(long double value);
 EXPORT wchar_t* _cfromCharCode(uint16_t* numN, size_t count);
 EXPORT void* _cfromCodePoint(const double* numN, size_t count);
 EXPORT void _cchangeLocale();
+EXPORT int _chasFraction(double d);
+EXPORT STDCHAR_T* _ctoString(double d);
 
 void* fromCodePoint_stack(const double* numN, size_t count, size_t len);
 void* fromCodePoint_heap(const double* numN, size_t count, size_t len);
 size_t fromCodePoint(const double* numN, size_t count, STDCHAR_T * Str);
-int hasFraction(double d);
 
 // determine wether stack allocation can be supported by the compiler
 // if not it will be forcely replaced by the heap allocation
@@ -153,11 +157,36 @@ int isFinite(long double value) {
 int isNaN(long double value) {
     return isnan(value);
 }
-int hasFraction(double d) {
+int _chasFraction(double d) {
     // Compute the fractional part by subtracting the integer part
     double fp = d - floor(d);
     // Return 1 (true) if the fractional part is greater than the defined tolerance
     return fabs(fp) >= 1e-10;
+}
+STDCHAR_T* _ctoString(double d) {
+    // may be adjusted if the utf16 is taken as base encoding
+    // 18,446,744,073,709,551,615 - 26 + 10 (for floating point) + 1 for null terminator = 37
+    STDCHAR_T* str;
+    STDCHAR_T buf[37];
+    if (_chasFraction(d)) {
+        // Significant fractional part
+        int len = _wsnprintf(buf, sizeof(buf), "%.10f", d);
+        // Remove trailing zeros
+        STDCHAR_T *end = buf + len - 1;
+        while (*end == '0') // end never >= buf
+            end--;
+        if (*end == '.')
+            end--;
+        len = (end - buf) * sizeof(STDCHAR_T);
+        str = mmalloc(len);
+        memcpy(str, buf, len + sizeof(STDCHAR_T)); // to copy with null terminator
+    } else {
+        // No significant fractional part
+        int len = _wsnprintf(buf, sizeof(buf), "%.0f", d);
+        str = mmalloc(len);
+        memcpy(str, buf, len + sizeof(STDCHAR_T)); // to copy with null terminator
+    }
+    return str;
 }
 // fromCharCode C implementation
 wchar_t* _cfromCharCode(uint16_t* numN, size_t count) {
@@ -242,7 +271,7 @@ size_t fromCodePoint(const double* numN, size_t count, STDCHAR_T* Str) {
             // so we'd use the same approach i think
 
             // ref https://developer.mozilla.org/ru/docs/Web/JavaScript/Reference/Global_Objects/String/fromCodePoint#:~:text=throw%20RangeError(%22Invalid%20code%20point%3A%20%22%20%2B%20codePoint)%3B
-            if (hasFraction(codePoint))
+            if (_chasFraction(codePoint))
                 RangeError("Invalid code point %f", codePoint);
             else
                 RangeError("Invalid code point %lld", (long long) codePoint);

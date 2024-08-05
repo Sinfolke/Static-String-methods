@@ -23,12 +23,14 @@ class RangeError {
 declare function malloc(size: size_t): Opaque;
 // declare function realloc(src: Opaque, newsize: size_t): Opaque;
 // declare function free(mem: Opaque): void;
-// declare function memcpy(dest: Opaque, src: Opaque, bytes: int): Opaque;
+declare function memcpy(dest: Opaque, src: Opaque, bytes: int): Opaque;
 // declare function memmove(dest: Opaque, src: Opaque, bytes: int): Opaque;
 declare function uprint(text: string): int; // prints depends whether choosen utf16 or utf8 encoding
 declare function _cfromCharCode(numN: u16[], len: size_t): string;
 declare function _cfromCodePoint(numN: double[], len: size_t): string;
 declare function _cchangeLocale(): void;
+declare function _chasFraction(d: double): boolean;
+declare function _ctoString(d: double): string;
 
 function mmalloc(size: size_t): Opaque {
    // we add some under the hood check for null, but can be removed if not need
@@ -36,6 +38,35 @@ function mmalloc(size: size_t): Opaque {
    if (src == null)
       throw new bad_alloc();
    return src;
+}
+function String(val: any): string {
+   if (typeof val === "string") return val;
+   else if (typeof val === "number") return _ctoString(val);
+   else if (typeof val === "boolean") return val ? "true" : "false";
+   else if (typeof val === "undefined") return "undefined";
+   else if (typeof val === "object") {
+      if (val === null) return "null";
+      let result: string = "";
+      if (Array.isArray(val)) {
+         const _a: any[] = val;
+         for (let i: number = 0; i < _a.length - 1; ++i) {
+            result += String(_a[i]);
+            result += ", ";
+         }
+         result += _a[_a.length - 1];
+         result += "]";
+      } else {
+         result += "{";
+         for (const [key, value] in val) {
+            result += `${String(key)}: ${String(value)}`;
+            result += ",\n";
+         }
+         result += "}";
+      }
+      return result;
+   } else {
+      return `<${typeof val}>`;
+   } 
 }
 static class String {
    fromCharCode(...numN: u16[]): string {
