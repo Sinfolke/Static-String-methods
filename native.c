@@ -19,12 +19,13 @@ void keepfn(void* p1, void* p2);
     #define EXPORT __attribute__((visibility("default")))
 #endif
 
-#if defined(_WIN32) && !defined(FORCE_UTF8)
+#if (defined(FORCE_UTF) && FORCE_UTF == 16) || (!defined(FORCE_UTF) && defined(_WIN32))
     // we'd prefer to use utf16 encoding as it is standard for Windows
     #include <Windows.h>
     #define UTF16 1
     #define STDCHAR_T wchar_t
     #define STDCHAR_T_STR "wchar_t"
+    #define NULLTERM L'\0'
     #define _wsnprintf(buffer, size, format, ...) \
         swprintf(buffer, size, L##format, __VA_ARGS__)
     size_t char_conv(uint32_t codePoint, char* Str) {
@@ -58,10 +59,11 @@ void keepfn(void* p1, void* p2);
         // we use utf16 so print as wstring
         return printf("%ls", text);
     }
-#else
+#else // FORCE_UTF == 8 or it is unix
     #define UTF16 0
     #define STDCHAR_T char
     #define STDCHAR_T_STR "char"
+    #define NULLTERM '\0'
     #define _wsnprintf(buffer, size, format, ...) \
         snprintf(buffer, size, format, __VA_ARGS__)
     size_t char_conv(uint32_t codePoint, char* Str) {
@@ -158,45 +160,41 @@ int isNaN(long double value) {
     return isnan(value);
 }
 int _chasFraction(double d) {
-    // Compute the fractional part by subtracting the integer part
-    double fp = d - floor(d);
-    // Return 1 (true) if the fractional part is greater than the defined tolerance
-    return fabs(fp) >= 1e-10;
+    return floor(d) != d;
 }
 STDCHAR_T* _ctoString(double d) {
-    // may be adjusted if the utf16 is taken as base encoding
     // 18,446,744,073,709,551,615 - 26 + 10 (for floating point) + 1 for null terminator = 37
-    STDCHAR_T* str;
+    // double would take 26 characters
     STDCHAR_T buf[37];
+    int len;
     if (_chasFraction(d)) {
         // Significant fractional part
-        int len = _wsnprintf(buf, sizeof(buf), "%.10f", d);
+        len = _wsnprintf(buf, sizeof(buf), "%e", d);
         // Remove trailing zeros
         STDCHAR_T *end = buf + len - 1;
-        while (*end == '0') // end never >= buf
+        while (*end == '0') // end never >= str
             end--;
         if (*end == '.')
             end--;
-        len = (end - buf) * sizeof(STDCHAR_T);
-        str = mmalloc(len);
-        memcpy(str, buf, len + sizeof(STDCHAR_T)); // to copy with null terminator
+        len = (end - buf + 1) * sizeof(STDCHAR_T);
     } else {
         // No significant fractional part
-        int len = _wsnprintf(buf, sizeof(buf), "%.0f", d);
-        str = mmalloc(len);
-        memcpy(str, buf, len + sizeof(STDCHAR_T)); // to copy with null terminator
+        len = _wsnprintf(buf, sizeof(buf), "%lld", (long long) d);
     }
+    STDCHAR_T *str = mmalloc(len);
+    memcpy(str, buf, len);
+    str[len] = NULLTERM;
     return str;
 }
 // fromCharCode C implementation
+// in js implementation it is strictly utf 16
 wchar_t* _cfromCharCode(uint16_t* numN, size_t count) {
     size_t len = (count + 1) * sizeof(wchar_t);
     wchar_t* str = mmalloc(len);
     memcpy(str, numN, len);
+
     // null terminate the string
-    for (wchar_t i = 0; i < sizeof(wchar_t); i++) {
-      str[len + i] = '\0';
-    }
+    str[len] = L'\0';
     return str;
 }
 void* _cfromCodePoint(const double* numN, size_t count) {
@@ -231,8 +229,7 @@ void* fromCodePoint_stack(const double* numN, size_t count, size_t len) {
     STDCHAR_T* heap = mmalloc(len); // alloc heap memory with an exact size
     memcpy(heap, stack, len);       // copy
     // null terminate the string
-    for (size_t i = 0; i < sizeof(STDCHAR_T); ++i)
-        heap[len + i] = '\0';
+    heap[len] = NULLTERM;
     return heap;
 
 }
@@ -250,8 +247,7 @@ void* fromCodePoint_heap(const double* numN, size_t count, size_t len) {
         if (newstr != NULL) heap = newstr;
     }
     // null terminate the string
-    for (size_t i = 0; i < sizeof(STDCHAR_T); ++i)
-        heap[len + i] = '\0';
+    heap[len] = NULLTERM;
     return heap;
 }
 size_t fromCodePoint(const double* numN, size_t count, STDCHAR_T* Str) {
@@ -264,7 +260,7 @@ size_t fromCodePoint(const double* numN, size_t count, STDCHAR_T* Str) {
             !isFinite(codePoint)            ||
             codePoint < 0                   ||
             codePoint > 0x10ffff            ||
-            floor(codePoint) != codePoint   
+            _chasFraction(codePoint) // floor(codePoint) != codePoint
         ) {
             dblog("fromCodePoint throws RangeError at index %zu: \n", i);
             // natively javascript would include floating point only when it does exist
@@ -272,7 +268,7 @@ size_t fromCodePoint(const double* numN, size_t count, STDCHAR_T* Str) {
 
             // ref https://developer.mozilla.org/ru/docs/Web/JavaScript/Reference/Global_Objects/String/fromCodePoint#:~:text=throw%20RangeError(%22Invalid%20code%20point%3A%20%22%20%2B%20codePoint)%3B
             if (_chasFraction(codePoint))
-                RangeError("Invalid code point %f", codePoint);
+                RangeError("Invalid code point %e", codePoint); // using exponental output
             else
                 RangeError("Invalid code point %lld", (long long) codePoint);
         }

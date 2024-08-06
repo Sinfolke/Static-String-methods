@@ -39,35 +39,41 @@ function mmalloc(size: size_t): Opaque {
       throw new bad_alloc();
    return src;
 }
-function String(val: any): string {
-   if (typeof val === "string") return val;
-   else if (typeof val === "number") return _ctoString(val);
-   else if (typeof val === "boolean") return val ? "true" : "false";
-   else if (typeof val === "undefined") return "undefined";
-   else if (typeof val === "object") {
-      if (val === null) return "null";
-      let result: string = "";
-      if (Array.isArray(val)) {
-         const _a: any[] = val;
-         for (let i: number = 0; i < _a.length - 1; ++i) {
-            result += String(_a[i]);
-            result += ", ";
-         }
-         result += _a[_a.length - 1];
-         result += "]";
-      } else {
-         result += "{";
-         for (const [key, value] in val) {
-            result += `${String(key)}: ${String(value)}`;
-            result += ",\n";
-         }
-         result += "}";
-      }
-      return result;
-   } else {
-      return `<${typeof val}>`;
-   } 
-}
+// function String(val: any): string {
+//    switch(typeof val) {
+//       case "string":
+//          return val;
+//       case "number":
+//          return _ctoString(val);
+//       case "boolean":
+//          return val ? "true" : "false";
+//       case "undefined":
+//          return "undefined";
+//       case "object":
+//          if (val === null) return "null";
+//          let result: string = "";
+//          if (Array.isArray(val)) {
+//             const _a: any[] = <any[]>val;
+//             for (let i: number = 0; i < _a.length - 1; ++i) {
+//                result += String(_a[i]);
+//                result += ", ";
+//             }
+//             result += _a[_a.length - 1];
+//             result += "]";
+//          } else {
+//             result += "{";
+//             for (const e in val) {
+//                result += `${String(e)}: ${String(val[e])}`;
+//                result += ",\n";
+//             }
+//             result += "}";
+//          }
+//          return result;
+//       default:
+//          // atlough it should be allowed to convert a function to a string.
+//          return `<${typeof val}>`; // <Function> etc.
+//    }
+// }
 static class String {
    fromCharCode(...numN: u16[]): string {
     if (numN.length == 0) return "";
@@ -84,32 +90,36 @@ static class String {
    }
    fromCodePoint(...numN: double[]): string {
     if (numN.length == 0) return "";
+    print(numN.length);
     return _cfromCodePoint(numN, numN.length);
    }
-   raw(callSite: string, ...substitutions: any[]): string {
-      let result: string = "";
-      if (callSite.length >= substitutions.length) {
-         let i = 0;
-         for (; i < substitutions.length; ++i) {
-            result += callSite[i];
-            result += String(substitutions[i]);
-         }
-         for (; i < callSite.length; ++i) {
-            result += callSite[i];
-         }
-      } else {
-         for (let i = 0; i < callSite.length; ++i) {
-            result += callSite[i];
-            result += String(substitutions[i]);
-         }
-      }
-      return result;
-   }
-   // String.raw`templateString` should be implemented by the compiler
+   // raw(callSite: { raw: string }, ...substitutions: any[]): string {
+   //    let result = "";
+   //    if (callSite.raw.length >= substitutions.length) {
+   //       let i = 0;
+   //       for (; i < substitutions.length; ++i) {
+   //          result += callSite[i];
+   //          result += String(substitutions[i]);
+   //       }
+   //       for (; i < callSite.raw.length; ++i) {
+   //          result += callSite[i];
+   //       }
+   //    } else {
+   //       for (let i = 0; i < callSite.raw.length; ++i) {
+   //          result += callSite[i];
+   //          result += String(substitutions[i]);
+   //       }
+   //    }
+   //    return result;
+   // }
+   // String.raw`templateString
 }
 
-// function main() {
-//    _cchangeLocale(); // change locale to output utf16 correctly
-//    uprint(String.fromCodePoint(0x4F60));  // it uses wprintf to output utf16 characters
-//    uprint(String.fromCharCode(0x4f60));
-// }
+function main() {
+   _cchangeLocale(); // change locale to output utf16 correctly
+   let result = String.fromCodePoint(0x1F600, 0x2764, 0x2B50, 0x1F602, 0x1F916);
+   print("len: " + result.length);
+   uprint(result);  // it uses wprintf to output utf16 characters
+   print("");
+   //uprint(String.fromCharCode(0x4f60));
+}

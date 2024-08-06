@@ -9,9 +9,14 @@ it primary relies onto C library
 
    **function mmalloc**
        _uses **malloc** and throws a **bad_alloc** on **NULL**. Used both within **ts and C** for allocations_
-
    **Static class String**
 # **native.c**:
+   **_macros_**:
+        - DEBUG to enable debug logging
+        - VLA to forcely enable or dissable VLA (VLA=0 or VLA=1)
+        - FORCE_UTF to always force use certain encoding (FORCE_UTF=8 or FORCE_UTF=16)
+          (otherwise on Windows it is utf16, on other systems utf8)
+
    **_cfromCharCode**
         _A C implementation of the fromCharCode_
 

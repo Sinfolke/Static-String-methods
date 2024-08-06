@@ -9,11 +9,7 @@ void* mmalloc(size_t size) {
     }
     return result;
 }
-void throw_RangeError(const char* msg) {
-    printf("Error: %s\n", msg);
-    exit(1);
-};
-uint32_t testarr[81];
+double testarr[81];
 typedef void (*void_func_t)(void);
 
 #if defined(_WIN32) || defined(_WIN64)
