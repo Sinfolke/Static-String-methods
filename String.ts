@@ -1,5 +1,5 @@
 type size_t = ulong;
-declare type wchar_t = short;
+//declare type wchar_t = short;
 class bad_alloc { // can be, or even must be replaced to InternalError
    public name: string = "bad_alloc";
    public message: string = "allocation error";
@@ -33,11 +33,11 @@ declare function _chasFraction(d: double): boolean;
 declare function _ctoString(d: double): string;
 
 function mmalloc(size: size_t): Opaque {
-   // we add some under the hood check for null, but can be removed if not need
-   let src: Opaque = malloc(size);
-   if (src == null)
+   // some under the hood check for null
+   let p: Opaque = malloc(size);
+   if (p == null)
       throw new bad_alloc();
-   return src;
+   return p;
 }
 // function String(val: any): string {
 //    switch(typeof val) {
@@ -76,21 +76,10 @@ function mmalloc(size: size_t): Opaque {
 // }
 static class String {
    fromCharCode(...numN: u16[]): string {
-    if (numN.length == 0) return "";
-    // both ts and C implementations work well
-    let len: size_t = (numN.length + 1) * sizeof(wchar_t);
-    let str: string = mmalloc(len);
-    memcpy(str, numN, len);
-    // null terminate the string
-    for (let i: wchar_t = 0; i < sizeof(wchar_t); i++) {
-      str[len + i] = '\0';
-    }
-    return str;
     return _cfromCharCode(numN, numN.length);
    }
    fromCodePoint(...numN: double[]): string {
     if (numN.length == 0) return "";
-    print(numN.length);
     return _cfromCodePoint(numN, numN.length);
    }
    // raw(callSite: { raw: string }, ...substitutions: any[]): string {
@@ -117,9 +106,5 @@ static class String {
 
 function main() {
    _cchangeLocale(); // change locale to output utf16 correctly
-   let result = String.fromCodePoint(0x1F600, 0x2764, 0x2B50, 0x1F602, 0x1F916);
-   print("len: " + result.length);
-   uprint(result);  // it uses wprintf to output utf16 characters
-   print("");
-   //uprint(String.fromCharCode(0x4f60));
+   uprint(String.fromCharCode(0x0448))
 }

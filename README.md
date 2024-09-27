@@ -13,8 +13,11 @@ it primary relies onto C library
 # **native.c**:
    **_macros_**:
         - DEBUG to enable debug logging
+
         - VLA to forcely enable or dissable VLA (VLA=0 or VLA=1)
+
         - FORCE_UTF to always force use certain encoding (FORCE_UTF=8 or FORCE_UTF=16)
+
           (otherwise on Windows it is utf16, on other systems utf8)
 
    **_cfromCharCode**
@@ -53,3 +56,6 @@ it primary relies onto C library
 
    **Private keepfn:**
         _the function to keep exported other internal functions like **malloc**, **memcpy** and so on_
+
+# **heap_only.ts**:
+     A typescript equivalent (without C). It always uses utf16 and always allocate onto heap

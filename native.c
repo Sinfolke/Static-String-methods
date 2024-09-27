@@ -7,6 +7,7 @@
 #include <locale.h>
 #include <math.h>
 #include <float.h>
+#include <wchar.h>
 void* mmalloc(size_t size);
 
 void RangeError(const char* msg, ...);
@@ -57,7 +58,7 @@ void keepfn(void* p1, void* p2);
     }
     EXPORT int uprint(const wchar_t* text) {
         // we use utf16 so print as wstring
-        return printf("%ls", text);
+        return wprintf(L"%ls\n", text);
     }
 #else // FORCE_UTF == 8 or it is unix
     #define UTF16 0
@@ -113,11 +114,13 @@ EXPORT void _cchangeLocale();
 EXPORT int _chasFraction(double d);
 EXPORT STDCHAR_T* _ctoString(double d);
 
+STDCHAR_T* fromCharCode_u8_stack(STDCHAR_T* numN, size_t count);
+STDCHAR_T* fromCharCode_u8_heap(STDCHAR_T* numN, size_t count);
 void* fromCodePoint_stack(const double* numN, size_t count, size_t len);
 void* fromCodePoint_heap(const double* numN, size_t count, size_t len);
 size_t fromCodePoint(const double* numN, size_t count, STDCHAR_T * Str);
 
-// determine wether stack allocation can be supported by the compiler
+// determine wther dynamic stack allocation can be supported
 // if not it will be forcely replaced by the heap allocation
 #ifndef VLA
 # if (                                                                    \
@@ -136,21 +139,20 @@ size_t fromCodePoint(const double* numN, size_t count, STDCHAR_T * Str);
 # undef VLA
 # ifdef _MSC_VER        
 #  define VLA 2         // in MSVC we must use _alloca
+#  define stalloc(name, len) STDCHAR_T* name = _alloca(len)
 # else
-#  define VLA 1         // we can follow C99 standard (for better compatibility) and use char[size] consturct
+#  define VLA 1         // we can follow C99 standard (for better compatibility) and use char[size] construct
+#  define stalloc(name, len) STDCHAR_T name[len]
 # endif
+#else
+#  define stalloc(name, len) STDCHAR_T* name;
 #endif
 #define MIN_REALLOC_REQUEST_SIZE 32      // how big must be offset to request realloc
-#define MIN_HEAP_ALLOC_REQUEST_SIZE 1022 // how big must be string to use heap (it is count, size will be count*4 + 2)
-                                         // here count is 1022 (max size 4096) - 4 kb
+#define MIN_HEAP_ALLOC_REQUEST_SIZE 1024 // how big must be string to use heap
+                                         // here count is 1024 - 1 kb
                                          // for linux max default stack size is 8 kb and for windows 1mb
 // change locale to output chars correctly (both utf8 and utf16)
 void _cchangeLocale() {
-// this works on windows, i think on unix the setlocale would be enough
-#ifdef WIN32
-    SetConsoleOutputCP(CP_UTF8);
-#endif
-
     setlocale(LC_CTYPE, "en_US.UTF-8");
 }
 int isFinite(long double value) {
@@ -163,70 +165,98 @@ int _chasFraction(double d) {
     return floor(d) != d;
 }
 STDCHAR_T* _ctoString(double d) {
-    // 18,446,744,073,709,551,615 - 26 + 10 (for floating point) + 1 for null terminator = 37
-    // double would take 26 characters
-    STDCHAR_T buf[37];
+    STDCHAR_T buf[40]; 
     int len;
+
     if (_chasFraction(d)) {
         // Significant fractional part
-        len = _wsnprintf(buf, sizeof(buf), "%e", d);
+        len = _wsnprintf(buf, sizeof(buf), "%.9f", d);
         // Remove trailing zeros
         STDCHAR_T *end = buf + len - 1;
-        while (*end == '0') // end never >= str
+        while (*end == '0' && end > buf)
             end--;
         if (*end == '.')
             end--;
-        len = (end - buf + 1) * sizeof(STDCHAR_T);
+        end++;
+        *end = NULLTERM;
+        len = end - buf;
     } else {
         // No significant fractional part
         len = _wsnprintf(buf, sizeof(buf), "%lld", (long long) d);
     }
-    STDCHAR_T *str = mmalloc(len);
-    memcpy(str, buf, len);
-    str[len] = NULLTERM;
-    return str;
-}
-// fromCharCode C implementation
-// in js implementation it is strictly utf 16
-wchar_t* _cfromCharCode(uint16_t* numN, size_t count) {
-    size_t len = (count + 1) * sizeof(wchar_t);
-    wchar_t* str = mmalloc(len);
-    memcpy(str, numN, len);
 
-    // null terminate the string
-    str[len] = L'\0';
+    // Allocate exact memory size, plus room for the null terminator
+    STDCHAR_T *str = (STDCHAR_T*) mmalloc((len + 1) * sizeof(STDCHAR_T));
+
+    // Copy the content and null-terminate
+    memcpy(str, buf, len * sizeof(STDCHAR_T));
+    str[len] = NULLTERM; // Ensure null-termination
+
     return str;
 }
-void* _cfromCodePoint(const double* numN, size_t count) {
-    dblog("%X\n", numN[0]);
-    #if VLA
-        if (count <= MIN_HEAP_ALLOC_REQUEST_SIZE)
-            return fromCodePoint_stack(numN, count, count * 4 + sizeof(STDCHAR_T));
+
+STDCHAR_T* _cfromCharCode(STDCHAR_T* numN, size_t count) {
+    #if UTF16
+        size_t len = (count + 1) * sizeof(STDCHAR_T);
+        STDCHAR_T* str = (STDCHAR_T*) mmalloc(len);
+        memcpy(str, numN, len);
+        str[len] = NULLTERM;    // null terminate the string
+        return str;
+    #else
+        #if VLA
+            if (len <= MIN_HEAP_ALLOC_REQUEST_SIZE)
+                return fromCharCode_u8_stack(numN, count);
+        #endif
+        return fromCharCode_u8_heap(numN, count);
     #endif
-        return fromCodePoint_heap(numN, count, count * 4 + sizeof(STDCHAR_T));
+}
+
+void* _cfromCodePoint(const double* numN, size_t count) {
+#if VLA
+    if (count <= MIN_HEAP_ALLOC_REQUEST_SIZE)
+        return fromCodePoint_stack(numN, count, count * 4 + sizeof(STDCHAR_T));
+#endif
+    return fromCodePoint_heap(numN, count, count * 4 + sizeof(STDCHAR_T));
 }
 
 /*
         ### private members ###
 */
-
-
+#if !UTF16
+# if VLA
+STDCHAR_T* fromCharCode_u8_stack(STDCHAR_T* numN, size_t count) {
+    size_t len = ( (count + 1) * 4) * sizeof(STDCHAR_T);
+    stalloc(stack, len);
+    len = wcstombs(stack, numN, len);
+    STDCHAR_T* str = mmalloc(len + sizeof(STDCHAR_T));
+    memcpy(str, stack, len);
+    str[len] = NULLTERM;
+    return str;
+}
+# endif
+STDCHAR_T* fromCharCode_u8_heap(STDCHAR_T* numN, size_t count) {
+    size_t len = ( (count + 1) * 4) * sizeof(STDCHAR_T);
+    STDCHAR_T* str = mmalloc(len);
+    size_t newlen = wcstombs(str, numN, len);
+    size_t offset = len - newlen;
+    if (offset >= MIN_REALLOC_REQUEST_SIZE) {
+        // realloc is needed
+        STDCHAR_T* p = (STDCHAR_T*) realloc(str, len + sizeof(STDCHAR_T));
+        if (p)
+            str = p;
+    }
+    str[newlen] = NULLTERM;
+    return str;
+}
+#endif
+#if VLA
 // does not exist when !VLA and therefore call will lead to compile-time err
 // use more efficient stack pre-allocation than heap
-#if VLA
 void* fromCodePoint_stack(const double* numN, size_t count, size_t len) {
-#if VLA == 1
-    // gcc, clang or C99 implementation
-    dblog("fromCodePoint: %s stack[%zu]\n", STDCHAR_T_STR, len);
-    STDCHAR_T stack[len];
-#else
-    // MSVC implementation
-    dblog("fromCodePoint: %s* stack = _alloca(%zu)\n", STDCHAR_T_STR, len);
-    STDCHAR_T* stack = _alloca(len); // same as stack[len] construct, but in MSVC we are forced to call _alloca
-#endif
+    stalloc(stack, len);
     // manage the characters in 'stack' and remove the offset from length
     len -= fromCodePoint(numN, count, stack);
-    STDCHAR_T* heap = mmalloc(len); // alloc heap memory with an exact size
+    STDCHAR_T* heap = (STDCHAR_T*) mmalloc(len); // alloc heap memory with an exact size
     memcpy(heap, stack, len);       // copy
     // null terminate the string
     heap[len] = NULLTERM;
@@ -238,13 +268,14 @@ void* fromCodePoint_stack(const double* numN, size_t count, size_t len) {
 // not so fast as stack allocation, but not slow in common execution practise
 void* fromCodePoint_heap(const double* numN, size_t count, size_t len) {
     dblog("fromCodePoint: %s* heap = mmalloc(%zu)\n", STDCHAR_T_STR, len);
-    STDCHAR_T* heap = mmalloc(len); // pre-allocate max amount of bytes onto heap
+    STDCHAR_T* heap = (STDCHAR_T*) mmalloc(len); // pre-allocate max amount of bytes onto heap
     size_t offset = fromCodePoint(numN, count, heap); // manage characters and get offset
     len -= offset; // now len represents the actual string length
     if (offset >= MIN_REALLOC_REQUEST_SIZE) {
         // reduce the pre-allocated size if it is worth to
-        STDCHAR_T* newstr = realloc(heap, len);
-        if (newstr != NULL) heap = newstr;
+        STDCHAR_T* new_heap = (STDCHAR_T*) realloc(heap, len);
+        if (new_heap)
+            heap = new_heap;
     }
     // null terminate the string
     heap[len] = NULLTERM;
