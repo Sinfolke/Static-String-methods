@@ -203,20 +203,22 @@ STDCHAR_T* _cfromCharCode(STDCHAR_T* numN, size_t count) {
         str[len] = NULLTERM;    // null terminate the string
         return str;
     #else
+        size_t len = ( (count + 1) * 4); // max possible size for all bytes
         #if VLA
             if (len <= MIN_HEAP_ALLOC_REQUEST_SIZE)
-                return fromCharCode_u8_stack(numN, count);
+                return fromCharCode_u8_stack(numN, len);
         #endif
-        return fromCharCode_u8_heap(numN, count);
+        return fromCharCode_u8_heap(numN, len);
     #endif
 }
 
 void* _cfromCodePoint(const double* numN, size_t count) {
+    size_t len = count * 4 + sizeof(STDCHAR_T);
 #if VLA
-    if (count <= MIN_HEAP_ALLOC_REQUEST_SIZE)
-        return fromCodePoint_stack(numN, count, count * 4 + sizeof(STDCHAR_T));
+    if (len <= MIN_HEAP_ALLOC_REQUEST_SIZE)
+        return fromCodePoint_stack(numN, count, len);
 #endif
-    return fromCodePoint_heap(numN, count, count * 4 + sizeof(STDCHAR_T));
+    return fromCodePoint_heap(numN, count, len);
 }
 
 /*
@@ -224,8 +226,7 @@ void* _cfromCodePoint(const double* numN, size_t count) {
 */
 #if !UTF16
 # if VLA
-STDCHAR_T* fromCharCode_u8_stack(STDCHAR_T* numN, size_t count) {
-    size_t len = ( (count + 1) * 4) * sizeof(STDCHAR_T);
+STDCHAR_T* fromCharCode_u8_stack(STDCHAR_T* numN, size_t len) {
     stalloc(stack, len);
     len = wcstombs(stack, numN, len);
     STDCHAR_T* str = mmalloc(len + sizeof(STDCHAR_T));
@@ -234,8 +235,7 @@ STDCHAR_T* fromCharCode_u8_stack(STDCHAR_T* numN, size_t count) {
     return str;
 }
 # endif
-STDCHAR_T* fromCharCode_u8_heap(STDCHAR_T* numN, size_t count) {
-    size_t len = ( (count + 1) * 4) * sizeof(STDCHAR_T);
+STDCHAR_T* fromCharCode_u8_heap(STDCHAR_T* numN, size_t len) {
     STDCHAR_T* str = mmalloc(len);
     size_t newlen = wcstombs(str, numN, len);
     size_t offset = len - newlen;

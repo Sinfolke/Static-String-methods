@@ -71,6 +71,13 @@ function _ctoString(d: double) {
     buf[len] = '\0';
     return buf;
 }
+function fromCharCode(numN: wchar_t[], count: size_t): string {
+    let len: size_t = (count + 1) * sizeof(wchar_t);
+    let str: string = mmalloc(len);
+    memcpy(str, numN, len);
+    str[len] = '\0';    // null terminate the string
+    return str;
+}
 function fromCodePoint(numN: double[], count: size_t, len: size_t) {
     let heap = mmalloc(len); // pre-allocate max amount of bytes onto heap
     let offset: size_t = 0;
