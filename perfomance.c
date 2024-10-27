@@ -64,7 +64,19 @@ double perfomance_seconds(TimeType start, TimeType end) {
 void get_time(TimeType *time) {
     clock_gettime(CLOCK_MONOTONIC, time);
 }
-
+void get_frequency(TimeType *frequency) {
+    struct timespec res;
+    if (clock_getres(CLOCK_MONOTONIC, &res) == 0) {
+        // Convert resolution to frequency
+        frequency->tv_sec = 1 / res.tv_sec;
+        frequency->tv_nsec = 1 / res.tv_nsec;
+    } else {
+        // Handle error if clock_getres fails
+        perror("Failed to get clock resolution");
+        frequency->tv_sec = 0;
+        frequency->tv_nsec = 0;
+    }
+}
 #endif
 const char* unit_str(perfomance_unit unit) {
 
@@ -87,7 +99,7 @@ double testf(size_t iterations, int print, const char* name, perfomance_unit uni
     
     get_time(&end_time);
     
-    double elapsed_time = unit(start_time, end_time, frequency);
+    double elapsed_time = unit(start_time, end_time);
     if (print) {
         printf("Time taken");
         if (name != NULL) {

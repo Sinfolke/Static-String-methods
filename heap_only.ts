@@ -1,8 +1,8 @@
 /*
     These functions can be done within the typescript without binding to a C library
     This will have following limitations:
-     no stack optimizations. Actually not critical, but why not?
-     always fixed character size, no configuration using preprocessor. Here i use wchar_t
+     no stack optimizations
+     always fixed character size, no configuration using preprocessor. Here I use wchar_t
 
 
 */
@@ -94,8 +94,9 @@ function fromCodePoint(numN: double[], count: size_t, len: size_t) {
             RangeError("Invalid code point " + codePoint);
         }
         // apply convertion for char according with encoding and get offset
-        offset += char_conv(codePoint, heap, i);
-
+        let [local_offset, newi] = char_conv(codePoint, heap, i);
+        offset += local_offset;
+        i = newi;
 
         // check below is being skipped since we do not need to worry for the array size such way
         // instead we allocate onto heap when the sequence is too large and sure the heap will never overflow

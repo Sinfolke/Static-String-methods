@@ -1,4 +1,11 @@
+// CONFIG
+#define MIN_REALLOC_REQUEST_SIZE 32      // how big must be offset to request realloc
+#define MIN_HEAP_ALLOC_REQUEST_SIZE 1024 // how big must be string to use heap
+                                         // here count is 1024 - 1 kb
+                                         // for linux max default stack size is 8 kb and for windows 1mb
 
+
+// INCLUDES
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -8,8 +15,10 @@
 #include <math.h>
 #include <float.h>
 #include <wchar.h>
-void* mmalloc(size_t size);
 
+// TS DEFINES
+void* mmalloc(size_t size);
+// UNSTABLE DEFINES (might be moved or deleted)
 void RangeError(const char* msg, ...);
 void dblog(const char* msg, ...);
 void wdblog(const wchar_t* msg, ...);
@@ -19,7 +28,7 @@ void keepfn(void* p1, void* p2);
 #else
     #define EXPORT __attribute__((visibility("default")))
 #endif
-
+// ENCODING-SPECIFIC DEFINES
 #if (defined(FORCE_UTF) && FORCE_UTF == 16) || (!defined(FORCE_UTF) && defined(_WIN32))
     // we'd prefer to use utf16 encoding as it is standard for Windows
     #include <Windows.h>
@@ -42,7 +51,7 @@ void keepfn(void* p1, void* p2);
             // so we're adding to offset other 2 bytes
             *Str++ = (codePoint >> 8) & 0xFF; // High byte
             *Str++ = codePoint & 0xFF;        // Low byte
-            return 2; // offset is 2
+            return 2; // 2 characters consumed
         } else { // codePoint <= 0x10FFFF
             // Supplementary character
             // it consumes 4 bytes
@@ -53,7 +62,7 @@ void keepfn(void* p1, void* p2);
             *Str++ = highSurrogate & 0xFF;        // High surrogate low byte
             *Str++ = (lowSurrogate >> 8) & 0xFF;  // Low surrogate high byte
             *Str++ = lowSurrogate & 0xFF;         // Low surrogate low byte
-            return 0;  // zero offset
+            return 4;  // 4 characters consumed
         }
     }
     EXPORT int uprint(const wchar_t* text) {
@@ -70,13 +79,12 @@ void keepfn(void* p1, void* p2);
     size_t char_conv(uint32_t codePoint, char* Str) {
         /*
             Converts the codePoint into utf-8 encoding
-            It is not js standard, but may be less problematic compared to utf16,
-            or at least better in usage
+            It is not js standard, but may be less problematic compared to utf16
         */
         if (codePoint <= 0x7F) {
             // 1 byte
             *Str = (char) codePoint;
-            return 3;
+            return 1;
         } 
         else if (codePoint <= 0x7FF) {
             // 2 bytes
@@ -89,7 +97,7 @@ void keepfn(void* p1, void* p2);
             *Str++ = (char) (0xE0 | (codePoint >> 12));
             *Str++ = (char) (0x80 | ((codePoint >> 6) & 0x3F));
             *Str++ = (char) (0x80 | (codePoint & 0x3F));
-            return 1;
+            return 3;
         }
         else { // codePoint <= 0x10FFFF
             // 4 bytes for supplementary characters
@@ -97,7 +105,7 @@ void keepfn(void* p1, void* p2);
             *Str++ = (char) (0x80 | ((codePoint >> 12) & 0x3F));
             *Str++ = (char) (0x80 | ((codePoint >> 6) & 0x3F));
             *Str++ = (char) (0x80 | (codePoint & 0x3F));
-            return 0;
+            return 4;
         }
     }
     EXPORT int uprint(const char* text) {
@@ -105,15 +113,16 @@ void keepfn(void* p1, void* p2);
         return printf("%s", text);
     }
 #endif
-// export symbols
+// EXPORT SYMBOLS
 EXPORT int isFinite(long double value);
 EXPORT int isNaN(long double value);
-EXPORT wchar_t* _cfromCharCode(uint16_t* numN, size_t count);
+EXPORT STDCHAR_T* _cfromCharCode(uint16_t* numN, size_t count);
 EXPORT void* _cfromCodePoint(const double* numN, size_t count);
 EXPORT void _cchangeLocale();
 EXPORT int _chasFraction(double d);
 EXPORT STDCHAR_T* _ctoString(double d);
 
+// PRIVATE SYMBOLS
 STDCHAR_T* fromCharCode_u8_stack(STDCHAR_T* numN, size_t count);
 STDCHAR_T* fromCharCode_u8_heap(STDCHAR_T* numN, size_t count);
 void* fromCodePoint_stack(const double* numN, size_t count, size_t len);
@@ -147,10 +156,6 @@ size_t fromCodePoint(const double* numN, size_t count, STDCHAR_T * Str);
 #else
 #  define stalloc(name, len) STDCHAR_T* name;
 #endif
-#define MIN_REALLOC_REQUEST_SIZE 32      // how big must be offset to request realloc
-#define MIN_HEAP_ALLOC_REQUEST_SIZE 1024 // how big must be string to use heap
-                                         // here count is 1024 - 1 kb
-                                         // for linux max default stack size is 8 kb and for windows 1mb
 // change locale to output chars correctly (both utf8 and utf16)
 void _cchangeLocale() {
     setlocale(LC_CTYPE, "en_US.UTF-8");
@@ -190,19 +195,23 @@ STDCHAR_T* _ctoString(double d) {
 
     // Copy the content and null-terminate
     memcpy(str, buf, len * sizeof(STDCHAR_T));
-    str[len] = NULLTERM; // Ensure null-termination
+    str[len] = NULLTERM;
 
     return str;
 }
-
-STDCHAR_T* _cfromCharCode(STDCHAR_T* numN, size_t count) {
+STDCHAR_T* _cfromCharCode(uint16_t* numN, size_t count) {
     #if UTF16
+        // perform simple copy onto heap as a string due encoding match
         size_t len = (count + 1) * sizeof(STDCHAR_T);
         STDCHAR_T* str = (STDCHAR_T*) mmalloc(len);
         memcpy(str, numN, len);
         str[len] = NULLTERM;    // null terminate the string
         return str;
     #else
+        // perform convertion from utf16 to utf8 character and make a string of it
+        // (if the encoding is utf8) - those serve as layer for instandard encoding compatibility
+
+        // <in some aggressive optimization a convertion may not be needed to trigger as every input with u16 can be read to u8>
         size_t len = ( (count + 1) * 4); // max possible size for all bytes
         #if VLA
             if (len <= MIN_HEAP_ALLOC_REQUEST_SIZE)
@@ -228,6 +237,9 @@ void* _cfromCodePoint(const double* numN, size_t count) {
 # if VLA
 STDCHAR_T* fromCharCode_u8_stack(STDCHAR_T* numN, size_t len) {
     stalloc(stack, len);
+
+    // js says fromCharCode does not handle surrogate pairs
+    // so wcstombs is what needed
     len = wcstombs(stack, numN, len);
     STDCHAR_T* str = mmalloc(len + sizeof(STDCHAR_T));
     memcpy(str, stack, len);
@@ -304,8 +316,10 @@ size_t fromCodePoint(const double* numN, size_t count, STDCHAR_T* Str) {
                 RangeError("Invalid code point %lld", (long long) codePoint);
         }
         // apply convertion for char according with encoding and get offset
-        offset += char_conv((int32_t) codePoint, (char*) Str);
+        size_t consumed = char_conv((int32_t) codePoint, (char*) Str);
+        offset += 4 - consumed;
 
+        Str += consumed;
 
         // check below is being skipped since we do not need to worry for the array size such way
         // instead we allocate onto heap when the sequence is too large and sure the heap will never overflow
