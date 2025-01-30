@@ -28,8 +28,15 @@ void keepfn(void* p1, void* p2);
 #else
     #define EXPORT __attribute__((visibility("default")))
 #endif
+#ifndef FORCE_UTF
+#ifdef _WIN32
+#define FORCE_UTF 16
+#else
+#define FORCE_UTF 8
+#endif
+#endif
 // ENCODING-SPECIFIC DEFINES
-#if (defined(FORCE_UTF) && FORCE_UTF == 16) || (!defined(FORCE_UTF) && defined(_WIN32))
+#if FORCE_UTF == 16
     // we'd prefer to use utf16 encoding as it is standard for Windows
     #include <Windows.h>
     #define UTF16 1
@@ -123,8 +130,8 @@ EXPORT int _chasFraction(double d);
 EXPORT STDCHAR_T* _ctoString(double d);
 
 // PRIVATE SYMBOLS
-STDCHAR_T* fromCharCode_u8_stack(STDCHAR_T* numN, size_t count);
-STDCHAR_T* fromCharCode_u8_heap(STDCHAR_T* numN, size_t count);
+STDCHAR_T* fromCharCode_u8_stack(uint16_t* numN, size_t count);
+STDCHAR_T* fromCharCode_u8_heap(uint16_t* numN, size_t count);
 void* fromCodePoint_stack(const double* numN, size_t count, size_t len);
 void* fromCodePoint_heap(const double* numN, size_t count, size_t len);
 size_t fromCodePoint(const double* numN, size_t count, STDCHAR_T * Str);
@@ -234,22 +241,22 @@ void* _cfromCodePoint(const double* numN, size_t count) {
         ### private members ###
 */
 #if !UTF16
-# if VLA
-STDCHAR_T* fromCharCode_u8_stack(STDCHAR_T* numN, size_t len) {
+
+#if VLA
+// Corrected function signature for fromCharCode_u8_stack
+STDCHAR_T* fromCharCode_u8_stack(uint16_t* numN, size_t len) {
     stalloc(stack, len);
 
-    // js says fromCharCode does not handle surrogate pairs
-    // so wcstombs is what needed
-    len = wcstombs(stack, numN, len);
+    len = wcstombs(stack, (wchar_t*)numN, len); // Cast numN to wchar_t*
     STDCHAR_T* str = mmalloc(len + sizeof(STDCHAR_T));
     memcpy(str, stack, len);
     str[len] = NULLTERM;
     return str;
 }
-# endif
-STDCHAR_T* fromCharCode_u8_heap(STDCHAR_T* numN, size_t len) {
+#endif
+STDCHAR_T* fromCharCode_u8_heap(uint16_t* numN, size_t len) {
     STDCHAR_T* str = mmalloc(len);
-    size_t newlen = wcstombs(str, numN, len);
+    size_t newlen = wcstombs(str, (wchar_t*)numN, len); // Cast numN to wchar_t*
     size_t offset = len - newlen;
     if (offset >= MIN_REALLOC_REQUEST_SIZE) {
         // realloc is needed
